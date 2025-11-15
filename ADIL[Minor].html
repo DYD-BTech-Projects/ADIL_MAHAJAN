@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive FCFS CPU Scheduler</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Loading Screen Animation */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.8s ease-out;
+            overflow: hidden;
+        }
+        
+        #loading-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Animated background particles */
+        .particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            animation: float 8s infinite;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) translateX(50px);
+                opacity: 0;
+            }
+        }
+        
+        .loader-content {
+            text-align: center;
+            color: white;
+            position: relative;
+            z-index: 10;
+        }
+        
+        /* 3D CPU Animation */
+        .cpu-container {
+            perspective: 1000px;
+            margin: 0 auto 40px;
+        }
+
+        .cpu-3d {
+            width: 180px;
+            height: 180px;
+            position: relative;
+            transform-style: preserve-3d;
+            animation: rotate3d 4s infinite linear;
+        }
+
+        @keyframes rotate3d {
+            0% { transform: rotateX(0deg) rotateY(0deg); }
+            50% { transform: rotateX(180deg) rotateY(180deg); }
+            100% { transform: rotateX(360deg) rotateY(360deg); }
+        }
+
+        .cpu-face {
+            position: absolute;
+            width: 180px;
+            height: 180px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: bold;
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.6);
+        }
+
+        .cpu-face.front {
+            transform: translateZ(90px);
+        }
+
+        .cpu-face.back {
+            transform: translateZ(-90px) rotateY(180deg);
+        }
+
+        .cpu-face.right {
+            transform: rotateY(90deg) translateZ(90px);
+        }
+
+        .cpu-face.left {
+            transform: rotateY(-90deg) translateZ(90px);
+        }
+
+        .cpu-face.top {
+            transform: rotateX(90deg) translateZ(90px);
+        }
+
+        .cpu-face.bottom {
+            transform: rotateX(-90deg) translateZ(90px);
+        }
+
+        /* Glowing text animation */
+        .glow-text {
+            font-size: 48px;
+            font-weight: 800;
+            text-transform: uppercase;
+            background: linear-gradient(45deg, #fff, #667eea, #fff);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 3s ease infinite;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            margin-bottom: 10px;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .project-info {
+            font-size: 18px;
+            margin: 15px 0;
+            opacity: 0;
+            animation: fadeInUp 1s ease-out 0.5s forwards;
+        }
+
+        .mentor-info {
+            font-size: 16px;
+            margin-top: 10px;
+            opacity: 0;
+            animation: fadeInUp 1s ease-out 1s forwards;
+            color: #a0d9ff;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+        }
+        
+        .progress-container {
+            width: 400px;
+            margin: 30px auto;
+            opacity: 0;
+            animation: fadeInUp 1s ease-out 1.5s forwards;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.3);
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
+            background-size: 200% 100%;
+            width: 0%;
+            animation: loadProgress 3s ease-out forwards, shimmer 2s linear infinite;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.8);
+        }
+        
+        @keyframes loadProgress {
+            to { width: 100%; }
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .loading-text {
+            margin-top: 15px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            letter-spacing: 2px;
+        }
+
+        /* Circuit pattern background */
+        .circuit-bg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0.1;
+            background-image: 
+                repeating-linear-gradient(90deg, transparent, transparent 50px, rgba(255,255,255,0.1) 50px, rgba(255,255,255,0.1) 51px),
+                repeating-linear-gradient(0deg, transparent, transparent 50px, rgba(255,255,255,0.1) 50px, rgba(255,255,255,0.1) 51px);
+            animation: moveCircuit 20s linear infinite;
+        }
+
+        @keyframes moveCircuit {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+        
+        /* Main Content Animation */
+        #main-content {
+            opacity: 0;
+            animation: fadeInUp 0.8s ease-out 0.5s forwards;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Terminal Styles */
+        .terminal {
+            background: #1e1e1e;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            color: #d4d4d4;
+            overflow: hidden;
+        }
+        
+        .terminal-header {
+            background: #323233;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .terminal-button {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .terminal-body {
+            padding: 20px;
+            height: 500px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .terminal-line {
+            margin-bottom: 8px;
+        }
+        
+        .terminal-input {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .terminal-prompt {
+            color: #4ec9b0;
+        }
+        
+        .terminal-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: #d4d4d4;
+            animation: blink 1s step-end infinite;
+        }
+        
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+        
+        .ansi-red { color: #f48771; }
+        .ansi-green { color: #4ec9b0; }
+        .ansi-yellow { color: #dcdcaa; }
+        .ansi-blue { color: #569cd6; }
+        .ansi-magenta { color: #c586c0; }
+        .ansi-cyan { color: #4ec9b0; }
+        .ansi-bold { font-weight: 700; }
+        
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: hidden;
+            animation: modalSlideIn 0.3s ease-out;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .process-card {
+            transition: all 0.5s ease-in-out;
+        }
+        
+        .gantt-bar-segment {
+            transition: width 0.5s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #2d2d2d;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 text-gray-800 min-h-screen">
+
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="circuit-bg"></div>
+        <div class="particles" id="particles"></div>
+        <div class="loader-content">
+            <div class="cpu-container">
+                <div class="cpu-3d">
+                    <div class="cpu-face front">⚡</div>
+                    <div class="cpu-face back">💻</div>
+                    <div class="cpu-face right">🔥</div>
+                    <div class="cpu-face left">⚙️</div>
+                    <div class="cpu-face top">🚀</div>
+                    <div class="cpu-face bottom">✨</div>
+                </div>
+            </div>
+            <h1 class="glow-text">FCFS CPU Scheduler</h1>
+            <div class="project-info">
+                <div style="font-size: 22px; font-weight: 700; margin-bottom: 8px;">ADIL MAHAJAN</div>
+                <div style="font-size: 18px; font-weight: 600; color: #ffd700;">DYD-23-01 • MINOR PROJECT</div>
+            </div>
+            <div class="mentor-info">
+                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 4px;">Under the guidance of</div>
+                <div style="font-size: 18px; font-weight: 600;">Ms. Aparna Sharma</div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+                <div class="loading-text">INITIALIZING SIMULATION ENVIRONMENT...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terminal Modal -->
+    <div id="terminal-modal" class="modal">
+        <div class="modal-content" style="width: 900px;">
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-button" style="background: #ff5f56;"></div>
+                    <div class="terminal-button" style="background: #ffbd2e;"></div>
+                    <div class="terminal-button" style="background: #27c93f;"></div>
+                    <span class="text-sm text-gray-400 ml-2">FCFS Scheduler - C Program</span>
+                    <button onclick="closeTerminal()" class="ml-auto text-gray-400 hover:text-white">✕</button>
+                </div>
+                <div class="terminal-body" id="terminal-output">
+                    <!-- Terminal content will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content" class="container mx-auto p-4 md:p-8 max-w-[1600px]">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2">
+                FCFS CPU Scheduling Simulator
+            </h1>
+            <p class="text-gray-600 text-lg">ADIL MAHAJAN • DYD-23-01 • MINOR PROJECT</p>
+            <p class="text-gray-500 text-sm mt-1">Mentor: Ms. Aparna Sharma</p>
+            <div class="mt-4 flex gap-3 justify-center">
+                <button onclick="openTerminal()" class="px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-all duration-300 font-semibold transform hover:scale-105">
+                    🖥️ View C Program in Terminal
+                </button>
+                <button onclick="downloadCCode()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 font-semibold transform hover:scale-105">
+                    📥 Download C Source Code
+                </button>
+            </div>
+            <p class="text-sm text-gray-500 mt-2">Note: Browsers cannot open native terminals due to security restrictions. The terminal emulator shows C program output.</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- LEFT PANEL -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+                <h2 class="text-xl font-bold mb-4 border-b pb-2 text-gray-800">Control Panel</h2>
+                
+                <form id="add-process-form" class="space-y-4">
+                    <h3 class="text-lg font-semibold text-gray-700">Add New Process</h3>
+                    <div>
+                        <label for="arrival-time" class="block text-sm font-medium text-gray-700">Arrival Time</label>
+                        <input type="number" id="arrival-time" min="0" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label for="burst-time" class="block text-sm font-medium text-gray-700">Burst Time</label>
+                        <input type="number" id="burst-time" min="1" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 transform hover:scale-105">
+                        ➕ Add Process
+                    </button>
+                </form>
+
+                <hr class="my-6">
+
+                <div>
+                    <h3 class="text-lg font-semibold mb-2 text-gray-700">Process List</h3>
+                    <div class="h-48 overflow-y-auto border rounded-lg">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">PID</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Arrival</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Burst</th>
+                                    <th class="px-4 py-2"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="process-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <hr class="my-6">
+                
+                <div class="space-y-3">
+                    <button id="run-button" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300 text-lg transform hover:scale-105">
+                        ▶️ Run Simulation
+                    </button>
+                    <button id="reset-button" class="w-full bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-300 transform hover:scale-105">
+                        🔄 Reset
+                    </button>
+                </div>
+            </div>
+
+            <!-- RIGHT PANEL -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+                <div class="flex justify-between items-center border-b pb-2 mb-4">
+                    <h2 class="text-xl font-bold text-gray-800">Simulation</h2>
+                    <div class="text-right">
+                        <p class="text-sm font-medium text-gray-500">Current Time</p>
+                        <p id="current-time" class="text-2xl font-bold text-indigo-600">0</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
+                        <h3 class="font-semibold text-center mb-2">Ready Queue</h3>
+                        <div id="ready-queue" class="min-h-[80px] p-2 bg-white rounded border border-dashed space-y-2"></div>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg border-2 border-green-500">
+                        <h3 class="font-semibold text-center mb-2 text-green-700">Running (CPU)</h3>
+                        <div id="running-cpu" class="min-h-[80px] p-2 bg-white rounded border border-dashed flex items-center justify-center"></div>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
+                        <h3 class="font-semibold text-center mb-2 text-blue-700">Completed</h3>
+                        <div id="completed-queue" class="min-h-[80px] p-2 bg-white rounded border border-dashed space-y-2"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">Gantt Chart</h3>
+                    <div id="gantt-chart-container" class="w-full bg-gray-200 rounded-lg p-3 overflow-x-auto">
+                        <div id="gantt-chart" class="h-12 flex items-center relative min-w-max"></div>
+                        <div id="gantt-timeline" class="h-6 flex items-start relative text-xs min-w-max">
+                            <div class="absolute left-0 bottom-0">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-6">
+
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">Results & Metrics</h3>
+                    <div id="metrics-summary" class="hidden">
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div class="bg-gradient-to-br from-yellow-100 to-yellow-200 p-4 rounded-lg text-center">
+                                <h4 class="font-semibold text-yellow-800">Avg. Waiting Time</h4>
+                                <p id="avg-waiting-time" class="text-3xl font-bold text-yellow-900">0.00</p>
+                            </div>
+                            <div class="bg-gradient-to-br from-teal-100 to-teal-200 p-4 rounded-lg text-center">
+                                <h4 class="font-semibold text-teal-800">Avg. Turnaround Time</h4>
+                                <p id="avg-turnaround-time" class="text-3xl font-bold text-teal-900">0.00</p>
+                            </div>
+                        </div>
+                        <div class="h-48 overflow-y-auto border rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50 sticky top-0">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">PID</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Arrival</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Burst</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Completion</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Turnaround</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Waiting</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="results-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="metrics-placeholder" class="text-center py-10 text-gray-500">
+                        <p>Run the simulation to see the results.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Create particles for background
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 8 + 's';
+                particle.style.animationDuration = (Math.random() * 4 + 6) + 's';
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        // Hide loading screen after page loads
+        window.addEventListener('load', function() {
+            createParticles();
+            setTimeout(() => {
+                document.getElementById('loading-screen').classList.add('fade-out');
+            }, 3500);
+        });
+
+        // Terminal Functions
+        function openTerminal() {
+            const modal = document.getElementById('terminal-modal');
+            modal.classList.add('active');
+            runCProgram();
+        }
+
+        function closeTerminal() {
+            document.getElementById('terminal-modal').classList.remove('active');
+        }
+
+        function downloadCCode() {
+            const cCode = `/**
+ * @file fcfs_scheduler_cui.c
+ * @brief An enhanced C program to simulate the FCFS CPU Scheduling Algorithm with a clean Console UI.
+ * @author ADIL MAHAJAN (DYD-23-01)
+ * @date 17-10-2025
+ *
+ * This program simulates the FCFS algorithm with an improved user interface,
+ * featuring ANSI colors, formatted tables, and a more engaging presentation.
+ * It calculates all necessary metrics and visualizes the process with a colored Gantt chart.
+ *
+ * How to Compile (on Windows with GCC/MinGW):
+ * gcc fcfs_scheduler_cui.c -o fcfs_scheduler_cui -lwinmm
+ *
+ * How to Compile (on Linux/macOS):
+ * gcc fcfs_scheduler_cui.c -o fcfs_scheduler_cui
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+
+// Include appropriate headers for sleep functionality based on OS
+#ifdef _WIN32
+#include <windows.h> // For Sleep() and console colors
+#include <conio.h>   // For _getch()
+#else
+#include <unistd.h> // For usleep()
+#endif
+
+// --- UI Enhancements: ANSI Color Codes ---
+#define RESET   "\\x1B[0m"
+#define BOLD    "\\x1B[1m"
+#define RED     "\\x1B[31m"
+#define GREEN   "\\x1B[32m"
+#define YELLOW  "\\x1B[33m"
+#define BLUE    "\\x1B[34m"
+#define MAGENTA "\\x1B[35m"
+#define CYAN    "\\x1B[36m"
+#define WHITE   "\\x1B[37m"
+
+// Structure to represent a process
+typedef struct {
+    int pid;
+    int arrivalTime;
+    int burstTime;
+    int completionTime;
+    int turnaroundTime;
+    int waitingTime;
+} Process;
+
+// --- Function Prototypes ---
+void swap(Process *a, Process *b);
+void sortByArrival(Process processes[], int n);
+void calculateMetrics(Process processes[], int n);
+void displayTable(Process processes[], int n);
+void displayGanttChart(Process processes[], int n);
+void clearScreen();
+void printHeader();
+void runSimulationAnimation();
+
+void clearScreen() {
+#ifdef _WIN32
+    system("cls");
+#else
+    system("clear");
+#endif
+}
+
+void printHeader() {
+    clearScreen();
+    printf(CYAN BOLD "+--------------------------------------------------------------------------+\\n");
+    printf("|" RESET BOLD "         FCFS (First-Come, First-Served) CPU Scheduler v2.0         " CYAN BOLD "|\\n");
+    printf("+--------------------------------------------------------------------------+\\n\\n" RESET);
+}
+
+void runSimulationAnimation() {
+    printf(YELLOW " [*] Running FCFS Simulation " RESET);
+    char spinner[] = "|/-\\\\";
+    for (int i = 0; i < 20; i++) {
+        printf("\\b%c", spinner[i % 4]);
+        fflush(stdout);
+        #ifdef _WIN32
+        Sleep(100);
+        #else
+        usleep(100000);
+        #endif
+    }
+    printf("\\b. " GREEN "Done!\\n\\n" RESET);
+}
+
+void swap(Process *a, Process *b) {
+    Process temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+void sortByArrival(Process processes[], int n) {
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = 0; j < n - i - 1; j++) {
+            if (processes[j].arrivalTime > processes[j + 1].arrivalTime) {
+                swap(&processes[j], &processes[j + 1]);
+            }
+        }
+    }
+}
+
+void calculateMetrics(Process processes[], int n) {
+    int currentTime = 0;
+    for (int i = 0; i < n; i++) {
+        if (currentTime < processes[i].arrivalTime) {
+            currentTime = processes[i].arrivalTime;
+        }
+        processes[i].completionTime = currentTime + processes[i].burstTime;
+        processes[i].turnaroundTime = processes[i].completionTime - processes[i].arrivalTime;
+        processes[i].waitingTime = processes[i].turnaroundTime - processes[i].burstTime;
+        currentTime = processes[i].completionTime;
+    }
+}
+
+void displayTable(Process processes[], int n) {
+    int totalWaitingTime = 0;
+    int totalTurnaroundTime = 0;
+
+    printf(BOLD " [RESULTS] FCFS Scheduling:\\n\\n" RESET);
+    printf(BLUE "+-----+--------------+------------+-----------------+-----------------+--------------+\\n");
+    printf("|" WHITE BOLD " PID | Arrival Time | Burst Time | Completion Time | Turnaround Time | Waiting Time " BLUE "|\\n");
+    printf("+-----+--------------+------------+-----------------+-----------------+--------------+\\n" RESET);
+
+    for (int i = 0; i < n; i++) {
+        printf(BLUE "|" RESET " %-3d " BLUE "|" RESET " %-12d " BLUE "|" RESET " %-10d " BLUE "|" RESET " %-15d " BLUE "|" RESET " %-15d " BLUE "|" RESET " %-12d " BLUE "|\\n" RESET,
+               processes[i].pid,
+               processes[i].arrivalTime,
+               processes[i].burstTime,
+               processes[i].completionTime,
+               processes[i].turnaroundTime,
+               processes[i].waitingTime);
+        totalWaitingTime += processes[i].waitingTime;
+        totalTurnaroundTime += processes[i].turnaroundTime;
+    }
+
+    printf(BLUE "+-----+--------------+------------+-----------------+-----------------+--------------+\\n\\n" RESET);
+
+    printf(BOLD " [STATS] Average Metrics:\\n" RESET);
+    printf(YELLOW "   - Average Waiting Time:    %.2f\\n" RESET, (float)totalWaitingTime / n);
+    printf(CYAN "   - Average Turnaround Time: %.2f\\n" RESET, (float)totalTurnaroundTime / n);
+}
+
+void displayGanttChart(Process processes[], int n) {
+    int i;
+    int lastCompletionTime = 0;
+    const char* colors[] = { RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN };
+
+    printf(BOLD "\\n [VISUAL] Gantt Chart:\\n\\n" RESET);
+
+    for (i = 0; i < n; i++) {
+        if (processes[i].arrivalTime > lastCompletionTime) {
+            printf(WHITE BOLD "|  IDLE  " RESET);
+        }
+        printf("%s|   P%d   " RESET, colors[i % 6], processes[i].pid);
+        lastCompletionTime = processes[i].completionTime;
+    }
+    printf("|\\n");
+
+    printf("0");
+    lastCompletionTime = 0;
+    for (i = 0; i < n; i++) {
+        if (processes[i].arrivalTime > lastCompletionTime) {
+            printf("        %d", processes[i].arrivalTime);
+        }
+        printf("        %d", processes[i].completionTime);
+        lastCompletionTime = processes[i].completionTime;
+    }
+    printf("\\n\\n");
+}
+
+int main() {
+    int n;
+    Process *processes;
+
+    #ifdef _WIN32
+    #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+    #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+    #endif
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD dwMode = 0;
+    GetConsoleMode(hOut, &dwMode);
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    SetConsoleMode(hOut, dwMode);
+    #endif
+
+    printHeader();
+    printf(BOLD "Welcome! Let's set up the processes.\\n\\n" RESET);
+
+    printf("Enter the number of processes: ");
+    scanf("%d", &n);
+
+    if (n <= 0) {
+        printf(RED "Error: Number of processes must be positive. Exiting.\\n" RESET);
+        return 1;
+    }
+
+    processes = (Process *)malloc(n * sizeof(Process));
+    if (processes == NULL) {
+        printf(RED "Error: Memory allocation failed. Exiting.\\n" RESET);
+        return 1;
+    }
+
+    printf("\\n" BOLD "Enter process details:\\n" RESET);
+    for (int i = 0; i < n; i++) {
+        processes[i].pid = i + 1;
+        printf(GREEN "+-- Process %d\\n" RESET, processes[i].pid);
+
+        printf(GREEN "|--" RESET " Enter Arrival Time: ");
+        scanf("%d", &processes[i].arrivalTime);
+        while (processes[i].arrivalTime < 0) {
+            printf(RED "|-- Invalid. Arrival Time cannot be negative. Please enter again: " RESET);
+            scanf("%d", &processes[i].arrivalTime);
+        }
+
+        printf(GREEN "|--" RESET " Enter Burst Time:   ");
+        scanf("%d", &processes[i].burstTime);
+        while (processes[i].burstTime <= 0) {
+            printf(RED "|-- Invalid. Burst Time must be positive. Please enter again: " RESET);
+            scanf("%d", &processes[i].burstTime);
+        }
+        printf(GREEN "\\n" RESET);
+    }
+    
+    printHeader();
+    runSimulationAnimation();
+
+    sortByArrival(processes, n);
+    calculateMetrics(processes, n);
+    displayTable(processes, n);
+    displayGanttChart(processes, n);
+
+    free(processes);
+
+    printf(BOLD "\\nPress any key to exit...\\n" RESET);
+    #ifdef _WIN32
+    _getch();
+    #else
+    getchar();
+    getchar();
+    #endif
+
+    return 0;
+}`;
+
+            const blob = new Blob([cCode], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'fcfs_scheduler_cui.c';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function runCProgram() {
+            const output = document.getElementById('terminal-output');
+            
+            if (processes.length === 0) {
+                output.innerHTML = '<div class="terminal-line"><span class="ansi-red">Error: No processes added. Please add processes first.</span></div>';
+                return;
+            }
+
+            // Calculate FCFS metrics using the same algorithm as the web simulation
+            const sortedProcesses = [...processes].sort((a, b) => a.arrivalTime - b.arrivalTime);
+            let currentTime = 0;
+            const results = [];
+            
+            sortedProcesses.forEach(p => {
+                if (currentTime < p.arrivalTime) {
+                    currentTime = p.arrivalTime;
+                }
+                const completionTime = currentTime + p.burstTime;
+                const turnaroundTime = completionTime - p.arrivalTime;
+                const waitingTime = turnaroundTime - p.burstTime;
+                
+                results.push({
+                    pid: p.pid,
+                    arrivalTime: p.arrivalTime,
+                    burstTime: p.burstTime,
+                    completionTime,
+                    turnaroundTime,
+                    waitingTime
+                });
+                
+                currentTime = completionTime;
+            });
+
+            const totalWaiting = results.reduce((sum, p) => sum + p.waitingTime, 0);
+            const totalTurnaround = results.reduce((sum, p) => sum + p.turnaroundTime, 0);
+            const avgWaiting = (totalWaiting / results.length).toFixed(2);
+            const avgTurnaround = (totalTurnaround / results.length).toFixed(2);
+
+            // Build terminal output lines
+            const lines = [
+                { text: '<span class="ansi-cyan ansi-bold">+--------------------------------------------------------------------------+</span>', delay: 0 },
+                { text: '<span class="ansi-bold">|         FCFS (First-Come, First-Served) CPU Scheduler v2.0         |</span>', delay: 100 },
+                { text: '<span class="ansi-cyan ansi-bold">+--------------------------------------------------------------------------+</span>', delay: 200 },
+                { text: '', delay: 300 },
+                { text: '<span class="ansi-bold">Welcome! Let\'s set up the processes.</span>', delay: 400 },
+                { text: '', delay: 500 },
+                { text: `Enter the number of processes: <span class="ansi-yellow">${processes.length}</span>`, delay: 1000 },
+                { text: '', delay: 1100 },
+                { text: '<span class="ansi-bold">Enter process details:</span>', delay: 1200 }
+            ];
+
+            let delayCounter = 1300;
+            sortedProcesses.forEach((p, idx) => {
+                lines.push({ text: `<span class="ansi-green">+-- Process ${idx + 1}</span>`, delay: delayCounter });
+                delayCounter += 100;
+                lines.push({ text: `<span class="ansi-green">|--</span> Enter Arrival Time: <span class="ansi-yellow">${p.arrivalTime}</span>`, delay: delayCounter });
+                delayCounter += 100;
+                lines.push({ text: `<span class="ansi-green">|--</span> Enter Burst Time:   <span class="ansi-yellow">${p.burstTime}</span>`, delay: delayCounter });
+                delayCounter += 100;
+                lines.push({ text: '', delay: delayCounter });
+                delayCounter += 100;
+            });
+
+            lines.push({ text: '<span class="ansi-yellow">[*] Running FCFS Simulation</span> <span class="ansi-green">Done!</span>', delay: delayCounter + 500 });
+            delayCounter += 700;
+            lines.push({ text: '', delay: delayCounter });
+            delayCounter += 100;
+            lines.push({ text: '<span class="ansi-bold">[RESULTS] FCFS Scheduling:</span>', delay: delayCounter });
+            delayCounter += 100;
+            lines.push({ text: '', delay: delayCounter });
+            delayCounter += 100;
+            lines.push({ text: '<span class="ansi-blue">+-----+--------------+------------+-----------------+-----------------+--------------+</span>', delay: delayCounter });
+            delayCounter += 100;
+            lines.push({ text: '<span class="ansi-blue">|</span> <span class="ansi-bold">PID | Arrival Time | Burst Time | Completion Time | Turnaround Time | Waiting Time</span> <span class="ansi-blue">|</span>', delay: delayCounter });
+            delayCounter += 100;
+            lines.push({ text: '<span class="ansi-blue">+-----+--------------+------------+-----------------+-----------------+--------------+</span>', delay: delayCounter });
+            delayCounter += 100;
+
+            results.forEach(r => {
+                const line = `<span class="ansi-blue">|</span> ${r.pid}   <span class="ansi-blue">|</span> ${String(r.arrivalTime).padEnd(12)} <span class="ansi-blue">|</span> ${String(r.burstTime).padEnd(10)} <span class="ansi-blue">|</span> ${String(r.completionTime).padEnd(15)} <span class="ansi-blue">|</span> ${String(r.turnaroundTime).padEnd(15)} <span class="ansi-blue">|</span> ${String(r.waitingTime).padEnd(12)} <span class="ansi-blue">|</span>`;
+                lines.push({ text: line, delay: delayCounter });
+                delayCounter += 100;
+            });
+
+            lines.push({ text: '<span class="ansi-blue">+-----+--------------+------------+-----------------+-----------------+--------------+</span>', delay: delayCounter });
+            delayCounter += 100;
+            lines.push({ text: '', delay: delayCounter });
+            delayCounter += 100;
+            lines.push({ text: '<span class="ansi-bold">[STATS] Average Metrics:</span>', delay: delayCounter });
+            delayCounter += 100;
+            lines.push({ text: `<span class="ansi-yellow">   - Average Waiting Time:    ${avgWaiting}</span>`, delay: delayCounter });
+            delayCounter += 100;
+            lines.push({ text: `<span class="ansi-cyan">   - Average Turnaround Time: ${avgTurnaround}</span>`, delay: delayCounter });
+            delayCounter += 100;
+            lines.push({ text: '', delay: delayCounter });
+            delayCounter += 100;
+            lines.push({ text: '<span class="ansi-bold">[VISUAL] Gantt Chart:</span>', delay: delayCounter });
+            delayCounter += 100;
+            lines.push({ text: '', delay: delayCounter });
+            delayCounter += 100;
+
+            // Build Gantt chart
+            const ganttColors = ['ansi-green', 'ansi-blue', 'ansi-yellow', 'ansi-red', 'ansi-magenta', 'ansi-cyan'];
+            let ganttLine = '<span class="ansi-bold">|</span>';
+            results.forEach((r, idx) => {
+                ganttLine += `<span class="${ganttColors[idx % ganttColors.length]}">   P${r.pid}   </span><span class="ansi-bold">|</span>`;
+            });
+            lines.push({ text: ganttLine, delay: delayCounter });
+            delayCounter += 100;
+
+            let timelineLine = '0';
+            results.forEach(r => {
+                timelineLine += '        ' + r.completionTime;
+            });
+            lines.push({ text: timelineLine, delay: delayCounter });
+            delayCounter += 100;
+            lines.push({ text: '', delay: delayCounter });
+            delayCounter += 100;
+            lines.push({ text: '<span class="ansi-bold">Press any key to exit...</span>', delay: delayCounter });
+
+            output.innerHTML = '';
+            
+            lines.forEach((line, index) => {
+                setTimeout(() => {
+                    const lineDiv = document.createElement('div');
+                    lineDiv.className = 'terminal-line';
+                    lineDiv.innerHTML = line.text;
+                    output.appendChild(lineDiv);
+                    output.scrollTop = output.scrollHeight;
+                }, line.delay);
+            });
+        }
+
+        // Main Simulation Code
+        const addProcessForm = document.getElementById('add-process-form');
+        const arrivalTimeInput = document.getElementById('arrival-time');
+        const burstTimeInput = document.getElementById('burst-time');
+        const processTableBody = document.getElementById('process-table-body');
+        const runButton = document.getElementById('run-button');
+        const resetButton = document.getElementById('reset-button');
+        const currentTimeDisplay = document.getElementById('current-time');
+        const readyQueueDiv = document.getElementById('ready-queue');
+        const runningCpuDiv = document.getElementById('running-cpu');
+        const completedQueueDiv = document.getElementById('completed-queue');
+        const ganttChart = document.getElementById('gantt-chart');
+        const ganttTimeline = document.getElementById('gantt-timeline');
+        const metricsSummary = document.getElementById('metrics-summary');
+        const metricsPlaceholder = document.getElementById('metrics-placeholder');
+        const avgWaitingTimeDisplay = document.getElementById('avg-waiting-time');
+        const avgTurnaroundTimeDisplay = document.getElementById('avg-turnaround-time');
+        const resultsTableBody = document.getElementById('results-table-body');
+
+        let processes = [];
+        let processIdCounter = 1;
+        let simulationInterval;
+        let currentTime = 0;
+        let readyQueue = [];
+        let completedProcesses = [];
+        let runningProcess = null;
+        let processPool = [];
+
+        const ganttColors = ['#34D399', '#60A5FA', '#FBBF24', '#F87171', '#818CF8', '#A78BFA', '#F472B6', '#FB923C'];
+
+        function addProcess(e) {
+            e.preventDefault();
+            const arrivalTime = parseInt(arrivalTimeInput.value, 10);
+            const burstTime = parseInt(burstTimeInput.value, 10);
+
+            if (isNaN(arrivalTime) || isNaN(burstTime) || arrivalTime < 0 || burstTime <= 0) {
+                alert('Please enter valid, non-negative arrival and positive burst times.');
+                return;
+            }
+
+            const newProcess = {
+                pid: processIdCounter++,
+                arrivalTime,
+                burstTime,
+                remainingTime: burstTime,
+                completionTime: 0,
+                turnaroundTime: 0,
+                waitingTime: 0,
+                color: ganttColors[(processIdCounter - 2) % ganttColors.length]
+            };
+
+            processes.push(newProcess);
+            renderProcessTable();
+            addProcessForm.reset();
+        }
+
+        function renderProcessTable() {
+            processTableBody.innerHTML = '';
+            processes.forEach(p => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">P${p.pid}</td>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">${p.arrivalTime}</td>
+                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">${p.burstTime}</td>
+                    <td class="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick="removeProcess(${p.pid})" class="text-red-600 hover:text-red-900">
+                           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg>
+                        </button>
+                    </td>
+                `;
+                processTableBody.appendChild(row);
+            });
+        }
+        
+        function removeProcess(pid) {
+            processes = processes.filter(p => p.pid !== pid);
+            renderProcessTable();
+        }
+
+        function createProcessCard(process) {
+            const card = document.createElement('div');
+            card.id = `process-card-${process.pid}`;
+            card.className = 'process-card p-2 rounded-lg border shadow-sm text-sm text-center';
+            card.style.borderColor = process.color;
+            card.style.backgroundColor = `${process.color}20`;
+            card.innerHTML = `<span class="font-bold">P${process.pid}</span> (AT: ${process.arrivalTime}, BT: ${process.burstTime})`;
+            return card;
+        }
+
+        function resetSimulation() {
+            clearInterval(simulationInterval);
+            currentTime = 0;
+            readyQueue = [];
+            completedProcesses = [];
+            runningProcess = null;
+            processPool = [];
+
+            currentTimeDisplay.textContent = '0';
+            readyQueueDiv.innerHTML = '';
+            runningCpuDiv.innerHTML = '';
+            completedQueueDiv.innerHTML = '';
+            ganttChart.innerHTML = '';
+            ganttTimeline.innerHTML = '<div class="absolute left-0 bottom-0">0</div>';
+
+            metricsSummary.classList.add('hidden');
+            metricsPlaceholder.classList.remove('hidden');
+            resultsTableBody.innerHTML = '';
+
+            runButton.disabled = false;
+            runButton.classList.remove('bg-gray-400', 'hover:bg-gray-400');
+            runButton.classList.add('bg-green-600', 'hover:bg-green-700');
+            addProcessForm.querySelectorAll('input, button').forEach(el => el.disabled = false);
+        }
+
+        function runSimulation() {
+            if (processes.length === 0) {
+                alert('Please add at least one process to simulate.');
+                return;
+            }
+            
+            resetSimulation();
+            
+            runButton.disabled = true;
+            runButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+            runButton.classList.add('bg-gray-400', 'hover:bg-gray-400');
+            addProcessForm.querySelectorAll('input, button').forEach(el => el.disabled = true);
+            
+            processPool = [...processes].sort((a, b) => a.arrivalTime - b.arrivalTime);
+            processPool.forEach(p => p.remainingTime = p.burstTime);
+
+            simulationInterval = setInterval(simulationStep, 1000);
+        }
+
+        function simulationStep() {
+            processPool.forEach(p => {
+                if (p.arrivalTime === currentTime) {
+                    readyQueue.push(p);
+                    readyQueueDiv.appendChild(createProcessCard(p));
+                }
+            });
+            processPool = processPool.filter(p => p.arrivalTime > currentTime);
+
+            if (runningProcess) {
+                runningProcess.remainingTime--;
+
+                const ganttBar = document.getElementById(`gantt-bar-${runningProcess.pid}`);
+                if (ganttBar) {
+                    const elapsedBurstTime = runningProcess.burstTime - runningProcess.remainingTime;
+                    ganttBar.style.width = `${elapsedBurstTime * 2}rem`;
+                }
+
+                if (runningProcess.remainingTime <= 0) {
+                    runningProcess.completionTime = currentTime + 1;
+                    runningProcess.turnaroundTime = runningProcess.completionTime - runningProcess.arrivalTime;
+                    runningProcess.waitingTime = runningProcess.turnaroundTime - runningProcess.burstTime;
+                    
+                    completedProcesses.push(runningProcess);
+                    
+                    const card = document.getElementById(`process-card-${runningProcess.pid}`);
+                    if(card) completedQueueDiv.appendChild(card);
+                    runningCpuDiv.innerHTML = '';
+
+                    runningProcess = null;
+                }
+            }
+            
+            if (!runningProcess && readyQueue.length > 0) {
+                runningProcess = readyQueue.shift();
+                
+                const card = document.getElementById(`process-card-${runningProcess.pid}`);
+                if(card) runningCpuDiv.appendChild(card);
+                
+                addGanttSegment(runningProcess, currentTime);
+            }
+
+            if (!runningProcess && readyQueue.length === 0 && processPool.length > 0) {
+                addGanttSegment({ isIdle: true }, currentTime);
+            }
+
+            currentTime++;
+            currentTimeDisplay.textContent = currentTime;
+            
+            const marker = document.createElement('div');
+            marker.className = 'absolute bottom-0 text-center';
+            marker.style.left = `${currentTime * 2}rem`;
+            marker.style.transform = 'translateX(-50%)';
+            marker.textContent = currentTime;
+            ganttTimeline.appendChild(marker);
+
+            if (completedProcesses.length === processes.length) {
+                clearInterval(simulationInterval);
+                displayFinalMetrics();
+                addProcessForm.querySelectorAll('input, button').forEach(el => el.disabled = false);
+            }
+        }
+        
+        function addGanttSegment(item, startTime) {
+            if (item.isIdle) {
+                const lastChild = ganttChart.lastElementChild;
+                if (lastChild && lastChild.id.startsWith('gantt-bar-idle')) {
+                    const currentWidthRem = parseFloat(lastChild.style.width) || 0;
+                    lastChild.style.width = `${currentWidthRem + 2}rem`;
+                } else {
+                    const idleBar = document.createElement('div');
+                    idleBar.id = `gantt-bar-idle-${startTime}`;
+                    idleBar.className = 'gantt-bar-segment h-full bg-gray-400 rounded-sm flex items-center justify-center text-white text-xs';
+                    idleBar.style.left = `${startTime * 2}rem`;
+                    idleBar.style.width = '2rem';
+                    idleBar.innerHTML = `<span>IDLE</span>`;
+                    idleBar.style.position = 'absolute';
+                    ganttChart.appendChild(idleBar);
+                }
+            } else {
+                const bar = document.createElement('div');
+                bar.id = `gantt-bar-${item.pid}`;
+                bar.className = 'gantt-bar-segment h-full rounded-sm flex items-center justify-center text-white font-bold text-sm';
+                bar.style.backgroundColor = item.color;
+                bar.style.position = 'absolute';
+                bar.style.left = `${startTime * 2}rem`;
+                bar.style.width = `0rem`;
+                bar.textContent = `P${item.pid}`;
+                ganttChart.appendChild(bar);
+            }
+        }
+
+        function displayFinalMetrics() {
+            // Recalculate metrics using the same algorithm as C program
+            const sortedProcesses = [...processes].sort((a, b) => a.arrivalTime - b.arrivalTime);
+            let currentTime = 0;
+            const results = [];
+            
+            sortedProcesses.forEach(p => {
+                if (currentTime < p.arrivalTime) {
+                    currentTime = p.arrivalTime;
+                }
+                const completionTime = currentTime + p.burstTime;
+                const turnaroundTime = completionTime - p.arrivalTime;
+                const waitingTime = turnaroundTime - p.burstTime;
+                
+                results.push({
+                    pid: p.pid,
+                    arrivalTime: p.arrivalTime,
+                    burstTime: p.burstTime,
+                    completionTime,
+                    turnaroundTime,
+                    waitingTime
+                });
+                
+                currentTime = completionTime;
+            });
+
+            // Sort by PID for display
+            results.sort((a, b) => a.pid - b.pid);
+
+            let totalWaitingTime = 0;
+            let totalTurnaroundTime = 0;
+
+            resultsTableBody.innerHTML = '';
+            results.forEach(p => {
+                totalWaitingTime += p.waitingTime;
+                totalTurnaroundTime += p.turnaroundTime;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-4 py-2 text-sm font-medium">P${p.pid}</td>
+                    <td class="px-4 py-2 text-sm">${p.arrivalTime}</td>
+                    <td class="px-4 py-2 text-sm">${p.burstTime}</td>
+                    <td class="px-4 py-2 text-sm">${p.completionTime}</td>
+                    <td class="px-4 py-2 text-sm">${p.turnaroundTime}</td>
+                    <td class="px-4 py-2 text-sm">${p.waitingTime}</td>
+                `;
+                resultsTableBody.appendChild(row);
+            });
+
+            const avgWaitingTime = totalWaitingTime / results.length;
+            const avgTurnaroundTime = totalTurnaroundTime / results.length;
+
+            avgWaitingTimeDisplay.textContent = avgWaitingTime.toFixed(2);
+            avgTurnaroundTimeDisplay.textContent = avgTurnaroundTime.toFixed(2);
+
+            metricsPlaceholder.classList.add('hidden');
+            metricsSummary.classList.remove('hidden');
+        }
+
+        addProcessForm.addEventListener('submit', addProcess);
+        runButton.addEventListener('click', runSimulation);
+        resetButton.addEventListener('click', resetSimulation);
+        
+        function addInitialData() {
+            const initialData = [
+                { at: 0, bt: 5 },
+                { at: 1, bt: 3 },
+                { at: 2, bt: 8 },
+                { at: 3, bt: 6 },
+            ];
+            initialData.forEach(data => {
+                arrivalTimeInput.value = data.at;
+                burstTimeInput.value = data.bt;
+                addProcess(new Event('submit'));
+            });
+        }
+        
+        window.onload = addInitialData;
+
+    </script>
+</body>
+</html>
